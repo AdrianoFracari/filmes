@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Login - Cinema Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); /* Fundo degradê azul */
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card-login {
+            width: 100%;
+            max-width: 400px;
+            border: none;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            border-radius: 15px;
+        }
+        .card-header {
+            background: transparent;
+            border-bottom: none;
+            text-align: center;
+            padding-top: 30px;
+        }
+        .form-control {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card card-login p-4">
+    <div class="card-header">
+        <h3 class="fw-bold text-primary">🎬 CINEMA</h3>
+        <p class="text-muted">Gerencie seu catálogo</p>
+    </div>
+    <div class="card-body">
+        <div class="mb-3">
+            <label class="form-label">Usuário</label>
+            <input type="text" id="usuario" class="form-control" placeholder="Ex: admin">
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Senha</label>
+            <input type="password" id="senha" class="form-control" placeholder="••••••">
+        </div>
+        
+        <div class="d-grid gap-2">
+            <button class="btn btn-primary btn-lg" onclick="fazerLogin()">Entrar</button>
+            <a href="cadastro.html" class="btn btn-outline-secondary">Criar Conta</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    const URL_AUTH = 'http://localhost:8081/auth';
+
+    async function fazerLogin() {
+        const loginInput = document.getElementById('usuario').value;
+        const senhaInput = document.getElementById('senha').value;
+
+        try {
+            const resposta = await fetch(URL_AUTH + '/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ login: loginInput, senha: senhaInput })
+            });
+
+            // Se o servidor retornar algo que não é JSON (vazio), cai no catch
+            const usuario = await resposta.json();
+
+            // Verifica se o usuário veio com ID (significa sucesso)
+            if (usuario && usuario.id) {
+                
+                // --- AQUI ESTÁ O SEGREDO ---
+                // Salvamos o ID para usar no cadastro de filmes depois
+                localStorage.setItem("usuarioId", usuario.id);
+                localStorage.setItem("usuarioNome", usuario.login);
+                
+                // Manda para o arquivo renomeado
+                window.location.href = "home.html";
+            } else {
+                alert("Usuário ou senha incorretos!");
+            }
+            
+        } catch (error) {
+            // Se o backend retornou null ou vazio, o .json() falha e cai aqui
+            console.error(error);
+            alert("Usuário ou senha incorretos!");
+        }
+    }
+</script>
+</body>
+</html>

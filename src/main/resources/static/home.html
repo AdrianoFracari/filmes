@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Painel de Filmes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    
+    <style>
+        body { background-color: #f0f2f5; }
+        .navbar { box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .card { border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .btn-action { width: 35px; height: 35px; padding: 0; line-height: 35px; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark bg-dark mb-4">
+    <div class="container">
+        <span class="navbar-brand mb-0 h1"><i class="bi bi-film"></i> Sistema de Cinema</span>
+        <div class="d-flex align-items-center text-white">
+            <span class="me-3 small">Logado como: <strong id="lblUsuario">...</strong></span>
+            <button class="btn btn-outline-light btn-sm" onclick="sair()">
+                <i class="bi bi-box-arrow-right"></i> Sair
+            </button>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="row">
+        
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0" id="tituloFormulario">Novo Filme</h5>
+                </div>
+                <div class="card-body">
+                    <input type="hidden" id="idFilme">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Título</label>
+                        <input type="text" id="titulo" class="form-control" placeholder="Ex: Matrix">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Diretor</label>
+                        <input type="text" id="diretor" class="form-control" placeholder="Ex: Wachowski">
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Ano</label>
+                            <input type="number" id="ano" class="form-control" placeholder="1999">
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label">Nota</label>
+                            <input type="number" id="nota" class="form-control" placeholder="0.0" step="0.1">
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-success" onclick="salvarFilme()">
+                            <i class="bi bi-check-lg"></i> Salvar Filme
+                        </button>
+                        <button class="btn btn-secondary" onclick="limparFormulario()">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body p-0">
+                    <table class="table table-striped table-hover mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Título</th>
+                                <th>Diretor</th>
+                                <th>Ano</th>
+                                <th>Nota</th>
+                                <th class="text-end">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelaFilmes">
+                            <!-- JS preenche aqui -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // 1. SEGURANÇA E SETUP INICIAL
+    const usuarioNome = localStorage.getItem("usuarioNome");
+    const usuarioId = localStorage.getItem("usuarioId");
+
+    // Se não tiver ID ou Login, volta pro login
+    if (!usuarioId || !usuarioNome) {
+        window.location.href = "login.html";
+    } else {
+        // Mostra o nome lá em cima
+        document.getElementById("lblUsuario").innerText = usuarioNome;
+    }
+
+    function sair() {
+        localStorage.clear(); // Limpa tudo
+        window.location.href = "login.html";
+    }
+
+    const URL_API = 'http://localhost:8081/filmes';
+
+    // 2. CARREGAR FILMES (GET)
+    async function carregarFilmes() {
+        try {
+            // Busca filmes filtrando pelo LOGIN (string)
+            const resposta = await fetch(`${URL_API}?login=${usuarioNome}`);
+            const filmes = await resposta.json();
+            
+            const tabela = document.getElementById('tabelaFilmes');
+            tabela.innerHTML = '';
+            
+            filmes.forEach(filme => {
+                const linha = document.createElement('tr');
+                
+                // Truque para passar o objeto filme para a função de edição sem quebrar as aspas
+                const filmeJSON = encodeURIComponent(JSON.stringify(filme));
+                
+                const corNota = filme.nota >= 8 ? 'text-success fw-bold' : 'text-secondary';
+
+                linha.innerHTML = `
+                    <td class="align-middle fw-bold">${filme.titulo}</td>
+                    <td class="align-middle">${filme.diretor}</td>
+                    <td class="align-middle">${filme.anoLancamento}</td>
+                    <td class="align-middle ${corNota}">${filme.nota}</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-outline-primary btn-action" onclick="prepararEdicao('${filmeJSON}')"><i class="bi bi-pencil-fill"></i></button>
+                        <button class="btn btn-sm btn-outline-danger btn-action" onclick="deletarFilme(${filme.id})"><i class="bi bi-trash-fill"></i></button>
+                    </td>
+                `;
+                tabela.appendChild(linha);
+            });
+        } catch (e) {
+            console.error("Erro ao listar:", e);
+        }
+    }
+
+    // 3. SALVAR (POST ou PUT)
+    async function salvarFilme() {
+        const id = document.getElementById('idFilme').value;
+        
+        const dados = {
+            titulo: document.getElementById('titulo').value,
+            diretor: document.getElementById('diretor').value,
+            anoLancamento: document.getElementById('ano').value,
+            nota: document.getElementById('nota').value,
+            // --- AQUI MUDOU: Envia o objeto Usuario com o ID ---
+            usuario: { 
+                id: usuarioId 
+            }
+        };
+
+        if (!dados.titulo || !dados.diretor) {
+            return alert("Preencha Título e Diretor!");
+        }
+
+        const metodo = id ? 'PUT' : 'POST';
+        const url = id ? `${URL_API}/${id}` : URL_API;
+
+        try {
+            const resp = await fetch(url, {
+                method: metodo,
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(dados)
+            });
+
+            if(resp.ok) {
+                limparFormulario();
+                carregarFilmes();
+            } else {
+                alert("Erro ao salvar! Verifique se os campos estão corretos.");
+            }
+        } catch (e) {
+            alert("Erro de conexão com o servidor.");
+        }
+    }
+
+    // Função auxiliar para preencher o formulário na edição
+    function prepararEdicao(filmeEncoded) {
+        // Decodifica o JSON que enviamos no botão
+        const filme = JSON.parse(decodeURIComponent(filmeEncoded));
+        
+        document.getElementById('tituloFormulario').innerText = "Editando Filme";
+        document.getElementById('idFilme').value = filme.id;
+        document.getElementById('titulo').value = filme.titulo;
+        document.getElementById('diretor').value = filme.diretor;
+        document.getElementById('ano').value = filme.anoLancamento;
+        document.getElementById('nota').value = filme.nota;
+    }
+
+    function limparFormulario() {
+        document.getElementById('tituloFormulario').innerText = "Novo Filme";
+        document.getElementById('idFilme').value = "";
+        document.getElementById('titulo').value = "";
+        document.getElementById('diretor').value = "";
+        document.getElementById('ano').value = "";
+        document.getElementById('nota').value = "";
+    }
+
+    async function deletarFilme(id) {
+        if(confirm("Deseja realmente excluir este filme?")) {
+            await fetch(`${URL_API}/${id}`, { method: 'DELETE' });
+            carregarFilmes();
+        }
+    }
+
+    // Inicia carregando a lista
+    carregarFilmes();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
